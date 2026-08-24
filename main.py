@@ -5,8 +5,17 @@
 # 4. It has to return data as JSON (key: value pairs)
 
 from flask import Flask, request, jsonify
+from sqlalchemy import create_engine 
+from models import Base
 
 app = Flask (__name__)
+
+# create a connection to the database using sqlalchemy engine
+engine = create_engine("sqlite:///./flask_duka_api.db", echo=True)
+
+# create tables into the database using sqlalchemy
+Base.metadata.create_all(engine)
+
 
 @app.route("/")
 def home():
