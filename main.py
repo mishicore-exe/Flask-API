@@ -15,6 +15,6 @@ def home():
         return jsonify(data), 200
     else:
         error = {"Error" : "Method not allowed"}
-        return jsonify(error), 403
+        return jsonify(error), 405
 
 app.run(debug=True)
