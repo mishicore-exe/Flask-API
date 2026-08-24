@@ -23,14 +23,14 @@ class Product(Base) :
     buying_price: Mapped[Float] = mapped_column(Float)
     selling_price: Mapped[Float] = mapped_column(Float)
 
-class Sales(Base) :
+class Sale(Base) :
     __tablename__ = "sales"
     id : Mapped[int] = mapped_column(Integer,primary_key=True)
     user_id:Mapped[int] = mapped_column(ForeignKey("users.id"))
     total_amount: Mapped[Float] = mapped_column(Float)
     sale_date: Mapped[date] = mapped_column(Date)
 
-class Sales_details(Base) :
+class Sales_detail(Base) :
      __tablename__ = "sales_details"
      id  : Mapped[int] = mapped_column(Integer,primary_key=True)
      sale_id:Mapped[int] = mapped_column(ForeignKey("sale.id"))
@@ -38,14 +38,15 @@ class Sales_details(Base) :
      quantity: Mapped[int] = mapped_column(Integer)
      total : Mapped[Float] = mapped_column(Float)
 
-class Purchases(Base) : 
+
+class Purchase(Base) : 
      __tablename__ = "purchases"
      id : Mapped[int] = mapped_column(Integer,primary_key=True)
      Product_id:Mapped[int] = mapped_column(ForeignKey("product.id"))
      purchase_price :  Mapped[Float] = mapped_column(Float)
      puchase_date : Mapped[date] = mapped_column(Date)
 
-class Payments(Base) :
+class Payment(Base) :
       __tablename__ = "payments"
       id : Mapped[int] = mapped_column(Integer,primary_key=True)
       sale_id:Mapped[int] = mapped_column(ForeignKey("sale.id"))
