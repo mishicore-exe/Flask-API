@@ -98,7 +98,6 @@ def purchase():
                  "payment_date": p.payment_date.strftime("%Y-%m-%d %I:%M %p") if p.payment_date else None
                  }
                  
-            
             results.append(p)
         return jsonify (results),200
 
@@ -110,7 +109,7 @@ def purchase():
             # store in database
             new_purchase=Purchase(
                 product_id=data["product_id"],
-                purchase_price=data["purchase_price"]
+                purchase_price=float(data["purchase_price"])
             )
             session.add(new_purchase)
             session.commit()
@@ -127,10 +126,10 @@ def sale():
         sales = session.scalars(query)
 
         results = []
-        for sal in sales:
-            s = {"id":sal.id,
-                 "user_id":sal.user_id,
-                 "total_amount":sal.total_amount,
+        for s in sales:
+            s = {"id":s.id,
+                 "user_id":s.user_id,
+                 "total_amount":s.total_amount,
                  "sale_date": s.sale_date.strftime("%Y-%m-%d %I:%M %p") if s.sale_date else None
                  }
             results.append(s)
@@ -142,9 +141,9 @@ def sale():
             return jsonify({"Error":"Ensure all required fields are set"}),403
         else:
             # store in database
-            new_sale=Purchase(
-                sale_id=data["sale_id"],
-                total_amount=data["total_amount"]
+            new_sale=Sale(
+                user_id=data["user_id"],
+                total_amount=float(data["total_amount"])
             )
             session.add(new_sale)
             session.commit()
