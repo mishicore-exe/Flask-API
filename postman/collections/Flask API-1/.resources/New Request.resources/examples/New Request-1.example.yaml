@@ -1,0 +1,32 @@
+$kind: http-example
+name: New Request
+request:
+  url: http://127.0.0.1:5000/products
+  method: POST
+  body:
+    type: json
+    content: "{\"id\" : \"1\",\r
+
+      \"product_name\" :\"milk\",\r
+
+      \"buying_price\": \"50\",\r
+
+      \"selling_price\": \"70\"\r
+
+      }"
+response:
+  statusCode: 201
+  statusText: CREATED
+  headers:
+    server: Werkzeug/3.1.8 Python/3.14.4
+    date: Mon, 31 Aug 2026 12:21:37 GMT
+    content-type: application/json
+    content-length: "61"
+    connection: close
+  body:
+    type: json
+    content: |-
+      {
+        "Message": "A new product has been added successfully"
+      }
+order: 324384049126808

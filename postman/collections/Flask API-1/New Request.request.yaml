@@ -1,5 +1,16 @@
 $kind: http-request
-name: New Request
-url: http://127.0.0.1:5000
-method: GET
+url: http://127.0.0.1:5000/products
+method: POST
+examples: .resources/New Request.resources/examples
 order: 1786989588636
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "user_id": 1,
+      "product_name": "milk",
+      "buying_price": "50",
+      "selling_price": "70"
+    }
