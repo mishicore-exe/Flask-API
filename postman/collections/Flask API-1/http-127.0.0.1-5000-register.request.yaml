@@ -1,0 +1,19 @@
+$kind: http-request
+name: " http://127.0.0.1:5000/register"
+description: ""
+url: " http://127.0.0.1:5000/register"
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \"full_name\":\"mitchelle warigia\",\r
+
+    \"email\":\"mitchi@mail.com\",\r
+
+    \"password\":\"mishi\",\r
+
+    \"phone_number\":\"0740090986\"\r
+
+    }"
+order: 2459304238562144

@@ -1,0 +1,29 @@
+$kind: http-example
+name: http://127.0.0.1:5000/products
+request:
+  url: ""
+  method: GET
+  body:
+    type: json
+    content: ""
+response:
+  statusCode: 200
+  statusText: OK
+  headers:
+    server: Werkzeug/3.1.8 Python/3.14.4
+    date: Mon, 07 Sep 2026 07:57:25 GMT
+    content-type: application/json
+    content-length: "109"
+    connection: close
+  body:
+    type: json
+    content: |-
+      [
+        {
+          "buying_price": 2000,
+          "id": 1,
+          "product_name": "Shoe",
+          "selling_price": 2500
+        }
+      ]
+order: 1788768920082

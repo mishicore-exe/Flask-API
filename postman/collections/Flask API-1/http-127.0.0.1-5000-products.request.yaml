@@ -1,0 +1,24 @@
+$kind: http-request
+name: " http://127.0.0.1:5000/products"
+description: ""
+url: " http://127.0.0.1:5000/products"
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \    \"user_id\":\"1\",\r
+
+    \    \"product_name\":\"Shoe\",\r
+
+    \    \"buying_price\":\"2000\",\r
+
+    \    \"selling_price\":\"2500\"\r
+
+    }"
+auth:
+  type: bearer
+  credentials:
+    token: "{{supabase_service_role_api_key_01i9}}"
+examples: .resources/http-127.0.0.1-5000-products.resources/examples
+order: 576918063121924

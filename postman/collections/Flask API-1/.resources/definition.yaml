@@ -1,2 +1,12 @@
 $kind: collection
 name: Flask API
+variables:
+  - key: supabase_service_role_api_key_01i9
+    secret: true
+    disabled: false
+  - key: supabase_service_role_api_key_07av
+    secret: true
+    disabled: false
+  - key: supabase_service_role_api_key_0pot
+    secret: true
+    disabled: false

@@ -1,24 +1,25 @@
 from sqlalchemy import ForeignKey
 from sqlalchemy import String,Integer,Float,DateTime
-from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy.orm import Mapped
-from sqlalchemy.orm import mapped_column
-from datetime import datetime,timezone
+from sqlalchemy.orm import DeclarativeBase,Mapped,mapped_column,relationship,declared_attr
+from datetime import datetime
 
 
 class Base(DeclarativeBase):
     pass
 
-class User(Base):
+class TimestampMixin:
+     created_at:Mapped[datetime]=mapped_column(DateTime,default=lambda:datetime.now())
+
+class User(Base,TimestampMixin):
     __tablename__="users"
 
     id : Mapped[int]= mapped_column(Integer,primary_key=True)
     full_name : Mapped[str]= mapped_column(String(100))
-    email : Mapped[str]= mapped_column(String(100)) 
-    password :  Mapped[str]= mapped_column(String(200)) 
-    phone_number : Mapped[int]= mapped_column(Integer)
+    email : Mapped[str]= mapped_column(String(100),unique=True,nullable=False) 
+    password :  Mapped[str]= mapped_column(String(200),nullable=False) 
+    phone_number : Mapped[int]= mapped_column(String(20))
 
-class Product(Base) :
+class Product(Base,TimestampMixin):
     __tablename__ = "products"
 
     id : Mapped[int] = mapped_column(Integer,primary_key=True)
@@ -27,13 +28,11 @@ class Product(Base) :
     buying_price: Mapped[Float] = mapped_column(Float)
     selling_price: Mapped[Float] = mapped_column(Float)
 
-class Sale(Base) :
+class Sale(Base, TimestampMixin) :
     __tablename__ = "sales"
 
     id : Mapped[int] = mapped_column(Integer,primary_key=True)
     user_id:Mapped[int] = mapped_column(ForeignKey("users.id"))
-    total_amount: Mapped[Float] = mapped_column(Float)
-    sale_date: Mapped[datetime] = mapped_column(DateTime)
 
 class Sales_detail(Base) :
      __tablename__ = "sales_details"
@@ -42,24 +41,21 @@ class Sales_detail(Base) :
      sale_id:Mapped[int] = mapped_column(ForeignKey("sales.id"))
      product_id:Mapped[int] = mapped_column(ForeignKey("products.id"))
      quantity: Mapped[int] = mapped_column(Integer)
-     total : Mapped[Float] = mapped_column(Float)
-
-
-class Purchase(Base) : 
+     
+class Purchase(Base, TimestampMixin) : 
      __tablename__ = "purchases"
 
      id : Mapped[int] = mapped_column(Integer,primary_key=True)
      product_id:Mapped[int] = mapped_column(ForeignKey("products.id"))
      purchase_price :  Mapped[Float] = mapped_column(Float)
-     purchase_date: Mapped[datetime] = mapped_column(DateTime, default=lambda:datetime.now())
 
-class Payment(Base) :
+class Payment(Base, TimestampMixin) :
       __tablename__ = "payments"
       
       id : Mapped[int] = mapped_column(Integer,primary_key=True)
       sale_id:Mapped[int] = mapped_column(ForeignKey("sales.id"))
       amount: Mapped[Float] = mapped_column(Float)
-      Payment_method : Mapped[str]= mapped_column(String(50))
-      payment_date : Mapped[datetime] = mapped_column(DateTime)
+      payment_method : Mapped[str]= mapped_column(String(50))
+      
     
 
