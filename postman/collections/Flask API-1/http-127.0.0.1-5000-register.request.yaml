@@ -16,4 +16,5 @@ body:
     \"phone_number\":\"0740090986\"\r
 
     }"
+examples: .resources/http-127.0.0.1-5000-register.resources/examples
 order: 2459304238562144

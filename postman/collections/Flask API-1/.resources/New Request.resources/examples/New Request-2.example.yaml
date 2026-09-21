@@ -1,0 +1,55 @@
+$kind: http-example
+name: New Request
+request:
+  url: http://127.0.0.1:5000/register
+  method: GET
+  headers:
+    Content-Type: application/json
+  body:
+    type: json
+    content: |-
+      {
+        "user_id": 1,
+        "product_name": "milk",
+        "buying_price": "50",
+        "selling_price": "70"
+      }
+response:
+  statusCode: 200
+  statusText: OK
+  headers:
+    server: Werkzeug/3.1.8 Python/3.14.4
+    date: Thu, 10 Sep 2026 09:45:58 GMT
+    content-type: application/json
+    content-length: "499"
+    connection: close
+  body:
+    type: json
+    content: |-
+      [
+        {
+          "email": "mitch@mail.com",
+          "full_name": "Mitchelle Wanjohi",
+          "id": 1,
+          "phone_number": "0712345678"
+        },
+        {
+          "email": "her@mail.com",
+          "full_name": "Mitchelle Wanjohi",
+          "id": 2,
+          "phone_number": "0712345678"
+        },
+        {
+          "email": "mitchi@mail.com",
+          "full_name": "mitchelle warigia",
+          "id": 3,
+          "phone_number": "0740090986"
+        },
+        {
+          "email": "mitch3@mail.com",
+          "full_name": "mitchelle warigia",
+          "id": 4,
+          "phone_number": "0740090986"
+        }
+      ]
+order: 1429368096524336

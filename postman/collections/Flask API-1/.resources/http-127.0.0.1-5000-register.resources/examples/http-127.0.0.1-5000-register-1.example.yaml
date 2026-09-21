@@ -1,0 +1,26 @@
+$kind: http-example
+name: http://127.0.0.1:5000/register
+description: ""
+request:
+  url: " http://127.0.0.1:5000/register"
+  method: GET
+  body:
+    type: json
+    content: "{\r
+
+      \"full_name\":\"mitchelle warigia\",\r
+
+      \"email\":\"mitchi@mail.com\",\r
+
+      \"password\":\"mishi\",\r
+
+      \"phone_number\":\"0740090986\"\r
+
+      }"
+response:
+  statusCode: 200
+  statusText: ""
+  body:
+    type: json
+    content: ""
+order: 1788802393332
