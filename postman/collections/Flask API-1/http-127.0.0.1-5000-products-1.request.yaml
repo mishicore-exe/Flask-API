@@ -1,5 +1,5 @@
 $kind: http-request
-name: " http://127.0.0.1:5000/products"
+name: http://127.0.0.1:5000/products
 description: ""
 url: " http://127.0.0.1:5000/products"
 method: POST
@@ -20,5 +20,4 @@ auth:
   type: bearer
   credentials:
     token: "{{supabase_service_role_api_key_01i9}}"
-examples: .resources/http-127.0.0.1-5000-products.resources/examples
 order: 576918063121924

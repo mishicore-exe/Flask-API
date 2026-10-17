@@ -1,27 +1,23 @@
-# Rest API- tis is a backend API that follows the four rules below
-# 1. It has to have a route
-# 2. It has to have a method (POST/GET/PUT/DELETE)
-# 3. It has to have a status code (200,201,403)
-# 4. It has to return data as JSON (key: value pairs)
-
-from flask import Flask, request, jsonify, redirect, url_for, session
+from flask import Flask, request, jsonify, session
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity
+from flask_cors import CORS
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 from models import Base, Product, User, Purchase, Sale, Payment, Sales_detail
-import sentry_sdk
-from flask_cors import CORS
-
 from flask_bcrypt import Bcrypt
+import sentry_sdk
+from mpesa import make_stk_push
+from generate_receipts import create_pdf
+
 
 sentry_sdk.init(
     dsn="https://9a3deb04003c766e9983b785c27e62ca@o4512045988773888.ingest.us.sentry.io/4512046189379584",
-    # Add data like request headers and IP for users,
-    # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
     send_default_pii=True,
 )
 
+
 app = Flask(__name__)
+
 CORS(app)
 
 app.config["JSON_SORT_KEYS"] = False
@@ -31,222 +27,180 @@ app.secret_key = "jayruywuiurywutruytuhu"
 bcrypt = Bcrypt(app)
 jwt = JWTManager(app)
 
-# create a connection to the database using sqlalchemy engine
 engine = create_engine("sqlite:///./flask_duka_api.db", echo=True)
-
-# create tables into the database using sqlalchemy
 Base.metadata.create_all(engine)
 
-# create a session to do sql transactions
 db_session = Session(engine)
 
-allowed_methods = ["GET", "POST", "DELETE", "PUT", "PATCH", "HEAD", "OPTIONS"]
+allowed_methods=["PUT","GET","PATCH","DELETE","POST"]
 
-
-# JWT
 @jwt.unauthorized_loader
 def unauthorized(error):
     return jsonify({
-        "url": "http://127.0.0.1:5000/login",
-        "name": "Please login"
+        "Error": "Please login"
     }), 401
-
 
 @jwt.invalid_token_loader
 def invalid_token(error):
     return jsonify({
-        "url": "http://127.0.0.1:5000/login",
-        "name": "Your token is invalid. Please login again"
+        "Error": "Your token is invalid. Please login again"
     }), 401
-
 
 @jwt.expired_token_loader
 def expired_token(jwt_header, jwt_payload):
     return jsonify({
-        "url": "http://127.0.0.1:5000/login",
-        "name": "Your session has expired. Please login again"
+        "Error": "Your session has expired. Please login again"
     }), 401
 
-@app.before_request
-def before_request():
-    try:
-        pass
-    except:
-        pass
-
-# HOME
-@app.route("/", methods=allowed_methods)
+@app.route("/", methods=["GET"])
 def home():
-    if request.method == "GET":
-        return jsonify({"Flask API" : "Version 1"}), 200
-    else:
-        return jsonify({"Error" : "Method not allowed"}), 405
-    
+    return jsonify({
+        "Flask API": "Version 1"
+    }), 200
 
-# REGISTER
-@app.route("/register", methods=allowed_methods)
+@app.route("/register", methods=["POST"])
 def register():
     try:
-        if request.method == "GET":
-            query = select(User)
-            users = db_session.scalars(query)
+        data = request.get_json()
 
-            results = []
+        full_name = data.get("full_name")
+        email = data.get("email")
+        password = data.get("password")
+        phone_number = data.get("phone_number")
 
-            for user in users:
-                u = {
-                    "id": user.id,
-                    "full_name": user.full_name,
-                    "email": user.email,
-                    "phone_number": user.phone_number
-                }
-                results.append(u)
-
-            return jsonify(results), 200
-
-        elif request.method == "POST":
-            data = request.get_json()
-
-            full_name = data["full_name"]
-            email = data["email"]
-            password = data["password"]
-            phone_number = data["phone_number"]
-
-            if data["full_name"] == "" or data["email"] == "" or data["password"] == "" or data["phone_number"] == "":
-                return jsonify({
-                    "Error": "Ensure all fields are set"
-                }), 400
-
-            # Checking if email already exists
-            existing_user = db_session.query(User).filter_by(email=email).first()
-
-            if existing_user:
-                return jsonify({
-                    "Error": "Email is already registered"
-                }), 409
-
-            # Hash password
-            hashed_password = bcrypt.generate_password_hash(password)
-
-            # Create new user
-            new_user = User(
-                full_name=full_name,
-                email=email,
-                password=hashed_password.decode("utf-8"),
-                phone_number=phone_number
-            )
-
-            db_session.add(new_user)
-            db_session.commit()
-
-            access_token = create_access_token(identity=email)
-
+        if not full_name or not email or not password or not phone_number:
             return jsonify({
-                "id": new_user.id,
-                "Message": "User added successfully",
-                "access_token": access_token,
-                "url": "http://127.0.0.1:5000/login"
-            }), 201
+                "Error": "Ensure all fields are set"
+            }), 400
 
-        else:
-            error = {"Error": "Method not allowed"}
-            return jsonify(error), 405
+        existing_user = db_session.query(User).filter_by(email=email).first()
+
+        if existing_user:
+            return jsonify({
+                "Error": "Email is already registered"
+            }), 409
+
+        hashed_password = bcrypt.generate_password_hash(password)
+
+        new_user = User(
+            full_name=full_name,
+            email=email,
+            password=hashed_password.decode("utf-8"),
+            phone_number=phone_number
+        )
+        db_session.add(new_user)
+        db_session.commit()
+
+        token = create_access_token(identity=email)
+
+        return jsonify({
+            "id": new_user.id,
+            "full_name": new_user.full_name,
+            "email": new_user.email,
+            "phone_number": new_user.phone_number,
+            "token": token,
+            "Message": "User added successfully"
+        }), 201
 
     except Exception as error:
         db_session.rollback()
-        return jsonify({"Error": str(error)}), 500
 
+        return jsonify({
+            "Error": str(error)
+        }), 500
 
-# LOGIN
-@app.route("/login", methods=allowed_methods)
+@app.route("/login", methods=["POST"])
 def login():
     try:
-        if request.method == "GET":
+        data = request.get_json()
+
+        email = data.get("email")
+        password = data.get("password")
+
+        if not email or not password:
             return jsonify({
-                "Message": "Please enter your login details"
-            }), 200
+                "Error": "Ensure all fields are set"
+            }), 403
 
-        elif request.method == "POST":
-            data = request.get_json()
+        existing_user = db_session.query(User).filter_by(email=email).first()
 
-            email = data.get("email")
-            password = data.get("password")
-
-            if not email or not password:
-                return jsonify({
-                    "Error": "Ensure all fields are set"
-                }), 403
-
-            # Find registered user
-            existing_user = db_session.query(User).filter_by(email=email).first()
-
-            if not existing_user:
-                return jsonify({
-                    "Error": "Invalid email or password"
-                }), 401
-
-            if not bcrypt.check_password_hash(existing_user.password, password):
-                return jsonify({
-                    "Error": "Invalid email or password"
-                }), 401
-
-            token = create_access_token(identity=email)
-
-            #logged-in user
-            session["user_id"] = existing_user.id
-
+        if not existing_user:
             return jsonify({
-                "id": existing_user.id,
-                "email": existing_user.email,
-                "full_name": existing_user.full_name,
-                "token": token,
-                "url": "http://127.0.0.1:5000/",
-                "Message": "login successful"
-            }), 200
+                "Error": "Invalid email or password"
+            }), 401
 
-        else:
-            error = {"error": "Method not allowed"}
-            return jsonify(error), 405
+        if not bcrypt.check_password_hash(existing_user.password, password):
+            return jsonify({
+                "Error": "Invalid email or password"
+            }), 401
+
+        token = create_access_token(identity=email)
+
+        session["user_id"] = existing_user.id
+
+        return jsonify({
+            "id": existing_user.id,
+            "email": existing_user.email,
+            "full_name": existing_user.full_name,
+            "phone_number": existing_user.phone_number,
+            "token": token,
+            "Message": "Login successful"
+        }), 200
 
     except Exception as error:
-        return jsonify({"Error": str(error)}), 500
+        return jsonify({
+            "Error": str(error)
+        }), 500
 
-
-# PRODUCTS
 @app.route("/products", methods=allowed_methods)
 @jwt_required()
 def products():
     try:
         email = get_jwt_identity()
-
         user = db_session.scalars(
             select(User).where(User.email == email)
         ).first()
 
         if not user:
-            return jsonify({"Error": "User not found"}), 404
+            return jsonify({
+                "Error": "User not found"
+            }), 404
 
         if request.method == "GET":
-            query = select(Product)
-            products = db_session.scalars(query)
-
+            products = db_session.scalars(
+                select(Product).where(Product.user_id == user.id)
+            )
             results = []
 
             for prod in products:
-                p = {
+                results.append({
                     "id": prod.id,
                     "product_name": prod.product_name,
+                    "category": prod.category,
                     "buying_price": prod.buying_price,
-                    "selling_price": prod.selling_price
-                }
-                results.append(p)
+                    "selling_price": prod.selling_price,
+                    "created_at": prod.created_at.isoformat()
+                    if prod.created_at else None
+                })
 
-            return jsonify(results), 200
+            return jsonify({
+                "data": results
+            }), 200
 
-        elif request.method == "POST":
-            data = request.get_json()
+        data = request.get_json()
 
-            if data["product_name"] == "" or data["buying_price"] == "" or data["selling_price"] == "":
+        if not data:
+            return jsonify({
+                "Error": "No data provided"
+            }), 400
+
+        if request.method == "POST":
+            if (
+                not data.get("product_name")
+                or not data.get("category")
+                or data.get("buying_price") is None
+                or data.get("selling_price") is None
+            ):
                 return jsonify({
                     "Error": "Ensure all fields are set"
                 }), 403
@@ -254,6 +208,7 @@ def products():
             new_product = Product(
                 user_id=user.id,
                 product_name=data["product_name"],
+                category=data["category"],
                 buying_price=float(data["buying_price"]),
                 selling_price=float(data["selling_price"])
             )
@@ -266,84 +221,85 @@ def products():
                 "Message": "A new product has been added successfully"
             }), 201
 
-        else:
-            error = {"error": "Method not allowed"}
-            return jsonify(error), 405
+        if request.method == "PUT":
+            product_id = data.get("id")
 
-    except Exception as error:
-        db_session.rollback()
-        return jsonify({"Error": str(error)}), 500
-
-
-# PURCHASES
-@app.route("/purchases", methods=allowed_methods)
-@jwt_required()
-def purchase():
-    try:
-        email = get_jwt_identity()
-
-        user = db_session.scalars(
-            select(User).where(User.email == email)
-        ).first()
-
-        if not user:
-            return jsonify({"Error": "User not found"}), 404
-
-        if request.method == "GET":
-            query = select(Purchase)
-            purchases = db_session.scalars(query)
-
-            results = []
-
-            for pur in purchases:
-                p = {
-                    "id": pur.id,
-                    "product_id": pur.product_id,
-                    "purchase_price": pur.purchase_price,
-                    "created_at": pur.purchase_date.strftime("%Y-%m-%d %I:%M %p")
-                    if pur.purchase_date else None
-                }
-
-                results.append(p)
-
-            return jsonify(results), 200
-
-        elif request.method == "POST":
-            data = request.get_json()
-
-            if data["product_id"] == "" or data["purchase_price"] == "":
+            if not product_id:
                 return jsonify({
-                    "Error": "Ensure all required fields are set"
+                    "Error": "Product ID is required"
+                }), 400
+
+            product = db_session.get(Product, product_id)
+
+            if not product:
+                return jsonify({
+                    "Error": "Product not found"
+                }), 404
+
+            if product.user_id != user.id:
+                return jsonify({
+                    "Error": "You cannot edit this product"
                 }), 403
 
-            else:
-                # store in database
-                new_purchase = Purchase(
-                    product_id=data["product_id"],
-                    purchase_price=float(data["purchase_price"])
-                )
-
-                db_session.add(new_purchase)
-                db_session.commit()
-
+            if (
+                not data.get("product_name")
+                or not data.get("category")
+                or data.get("buying_price") is None
+                or data.get("selling_price") is None
+            ):
                 return jsonify({
-                    "id": new_purchase.id,
-                    "Message": "A new purchase has been made successfully"
-                }), 201
+                    "Error": "Ensure all fields are set"
+                }), 403
 
-        else:
-            error = {"error": "Method not allowed"}
-            return jsonify(error), 405
+            product.product_name = data["product_name"]
+            product.category = data["category"]
+            product.buying_price = float(data["buying_price"])
+            product.selling_price = float(data["selling_price"])
+
+            db_session.commit()
+
+            return jsonify({
+                "Message": "Product updated successfully"
+            }), 200
+
+        if request.method == "DELETE":
+            product_id = data.get("id")
+
+            if not product_id:
+                return jsonify({
+                    "Error": "Product ID is required"
+                }), 400
+
+            product = db_session.get(Product, product_id)
+
+            if not product:
+                return jsonify({
+                    "Error": "Product not found"
+                }), 404
+
+            if product.user_id != user.id:
+                return jsonify({
+                    "Error": "You cannot delete this product"
+                }), 403
+
+            db_session.delete(product)
+            db_session.commit()
+
+            return jsonify({
+                "Message": "Product deleted successfully"
+            }), 200
 
     except Exception as error:
         db_session.rollback()
-        return jsonify({"Error": str(error)}), 500
+        print("PRODUCT ERROR:", error)
 
+        return jsonify({
+            "Error": str(error)
+        }), 500
 
-# SALES
 @app.route("/sales", methods=allowed_methods)
 @jwt_required()
-def sale():
+def sales():
     try:
         email = get_jwt_identity()
 
@@ -352,126 +308,170 @@ def sale():
         ).first()
 
         if not user:
-            return jsonify({"Error": "User not found"}), 404
+            return jsonify({
+                "Error": "User not found"
+            }), 404
 
         if request.method == "GET":
-            query = select(Sale)
-            sales = db_session.scalars(query)
+            sales = db_session.scalars(
+                select(Sale).where(Sale.user_id == user.id)
+            )
 
             results = []
 
-            for s in sales:
-                sale_data = {
-                    "id": s.id,
-                    "user_id": s.user_id,
-                    "created_at": s.sale_date.strftime("%Y-%m-%d %I:%M %p")
-                    if s.sale_date else None
-                }
+            for sale in sales:
+                product = db_session.get(Product, sale.product_id)
 
-                results.append(sale_data)
+                if product:
+                    results.append({
+                        "id": sale.id,
+                        "product_id": sale.product_id,
+                        "product_name": product.product_name,
+                        "quantity": sale.quantity,
+                        "total": product.selling_price * sale.quantity,
+                        "created_at": sale.created_at.isoformat()
+                        if sale.created_at else None
+                    })
 
-            return jsonify(results), 200
+            return jsonify({
+                "data": results
+            }), 200
 
-        elif request.method == "POST":
-            data = request.get_json()
+        data = request.get_json()
 
-            if data["user_id"] == "":
+        if not data:
+            return jsonify({
+                "Error": "No data provided"
+            }), 400
+
+        if request.method == "POST":
+            product_id = data.get("product_id")
+            quantity = data.get("quantity")
+
+            if not product_id or not quantity:
                 return jsonify({
-                    "Error": "Ensure all required fields are set"
+                    "Error": "Product and quantity are required"
+                }), 400
+
+            product = db_session.get(Product, product_id)
+
+            if not product:
+                return jsonify({
+                    "Error": "Product not found"
+                }), 404
+
+            if product.user_id != user.id:
+                return jsonify({
+                    "Error": "You cannot sell this product"
                 }), 403
 
-            else:
-                # store in database
-                new_sale = Sale(
-                    user_id=data["user_id"]
-                )
+            new_sale = Sale(
+                user_id=user.id,
+                product_id=product.id,
+                quantity=int(quantity)
+            )
 
-                db_session.add(new_sale)
+            db_session.add(new_sale)
+            db_session.commit()
+
+            return jsonify({
+                "id": new_sale.id,
+                "Message": "Sale added successfully"
+            }), 201
+
+        if request.method == "PUT":
+            sale_id = data.get("id")
+            product_id = data.get("product_id")
+            quantity = data.get("quantity")
+
+            if not sale_id:
+                return jsonify({
+                    "Error": "Sale ID is required"
+                }), 400
+
+            if not product_id or not quantity:
+                return jsonify({
+                    "Error": "Product and quantity are required"
+                }), 400
+
+            sale = db_session.get(Sale, sale_id)
+
+            if not sale:
+                return jsonify({
+                    "Error": "Sale not found"
+                }), 404
+
+            if sale.user_id != user.id:
+                return jsonify({
+                    "Error": "You cannot edit this sale"
+                }), 403
+
+            product = db_session.get(Product, product_id)
+
+            if not product:
+                return jsonify({
+                    "Error": "Product not found"
+                }), 404
+
+            if product.user_id != user.id:
+                return jsonify({
+                    "Error": "You cannot use this product"
+                }), 403
+
+            sale.product_id = product_id
+            sale.quantity = int(quantity)
+
+            db_session.commit()
+
+            return jsonify({
+                "Message": "Sale updated successfully"
+            }), 200
+        
+        if request.method == "DELETE":
+            sale_id = data.get("id")
+
+            if not sale_id:
+                return jsonify({
+                    "Error": "Sale ID is required"
+                }), 400
+
+            sale = db_session.get(Sale, sale_id)
+
+            if not sale:
+                return jsonify({
+                    "Error": "Sale not found"
+                }), 404
+
+            if sale.user_id != user.id:
+                return jsonify({
+                    "Error": "You cannot delete this sale"
+                }), 403
+
+            try:
+                db_session.delete(sale)
                 db_session.commit()
 
                 return jsonify({
-                    "id": new_sale.id,
-                    "Message": "A new sale has been made successfully"
-                }), 201
+                    "Message": "Sale deleted successfully"
+                }), 200
 
-        else:
-            error = {"error": "Method not allowed"}
-            return jsonify(error), 405
+            except Exception as error:
+                db_session.rollback()
+                print("DELETE SALE DATABASE ERROR:", repr(error))
+
+                return jsonify({
+                    "Error": "Failed to delete sale because of a database error"
+                }), 500
 
     except Exception as error:
         db_session.rollback()
-        return jsonify({"Error": str(error)}), 500
+        print("SALES ERROR:", repr(error))
 
+        return jsonify({
+            "Error": str(error)
+        }), 500
 
-# PAYMENT
-@app.route("/payments", methods=allowed_methods)
-@jwt_required()
-def payments():
-    try:
-        email = get_jwt_identity()
-
-        user = db_session.scalars(
-            select(User).where(User.email == email)
-        ).first()
-
-        if not user:
-            return jsonify({"Error": "User not found"}), 404
-
-        if request.method == "GET":
-            query = select(Payment)
-            payments = db_session.scalars(query)
-
-            results = []
-
-            for pts in payments:
-                payment_data = {
-                    "id": pts.id,
-                    "sale_id": pts.sale_id,
-                    "amount": pts.amount,
-                    "payment_method": pts.payment_method,
-                    "created_at": pts.payment_date.strftime("%Y-%m-%d %I:%M %p")
-                    if pts.payment_date else None
-                }
-
-                results.append(payment_data)
-
-            return jsonify(results), 200
-
-        elif request.method == "POST":
-            data = request.get_json()
-
-            if data["sale_id"] == "" or data["amount"] == "" or data["payment_method"] == "":
-                return jsonify({
-                    "Error": "Ensure all required fields are set"
-                }), 403
-
-            else:
-                # store in database
-                new_payment = Payment(
-                    sale_id=data["sale_id"],
-                    amount=float(data["amount"]),
-                    payment_method=data["payment_method"]
-                )
-
-                db_session.add(new_payment)
-                db_session.commit()
-
-                return jsonify({
-                    "id": new_payment.id,
-                    "Message": "Payment has been made successfully"
-                }), 201
-
-        else:
-            error = {"error": "Invalid request"}
-            return jsonify(error), 405
-
-    except Exception as error:
-        db_session.rollback()
-        return jsonify({"Error": str(error)}), 500
-
-
-# SALES-DETAILS
-@app.route("/sales-details", methods=allowed_methods)
+@app.route("/sales-details", methods=["GET", "POST"])
 @jwt_required()
 def sales_details():
     try:
@@ -482,57 +482,131 @@ def sales_details():
         ).first()
 
         if not user:
-            return jsonify({"Error": "User not found"}), 404
+            return jsonify({
+                "Error": "User not found"
+            }), 404
 
         if request.method == "GET":
-            query = select(Sales_detail)
-            sales_details = db_session.scalars(query)
+
+            sales_details = db_session.scalars(
+                select(Sales_detail)
+            )
 
             results = []
 
             for sd in sales_details:
-                sd_data = {
+                results.append({
                     "id": sd.id,
                     "sale_id": sd.sale_id,
                     "product_id": sd.product_id,
                     "quantity": sd.quantity
-                }
+                })
 
-                results.append(sd_data)
+            return jsonify({
+                "data": results
+            }), 200
 
-            return jsonify(results), 200
+        data = request.get_json()
 
-        elif request.method == "POST":
-            data = request.get_json()
+        if (
+            data.get("sale_id") in ["", None]
+            or data.get("product_id") in ["", None]
+            or data.get("quantity") in ["", None]
+        ):
+            return jsonify({
+                "Error": "Ensure all required fields are set"
+            }), 403
 
-            if data["sale_id"] == "" or data["product_id"] == "" or data["quantity"] == "":
-                return jsonify({
-                    "Error": "Ensure all required fields are set"
-                }), 403
+        new_sales_detail = Sales_detail(
+            sale_id=data["sale_id"],
+            product_id=data["product_id"],
+            quantity=int(data["quantity"])
+        )
 
-            else:
-                # store in database
-                new_sales_detail = Sales_detail(
-                    sale_id=data["sale_id"],
-                    product_id=data["product_id"],
-                    quantity=int(data["quantity"])
-                )
+        db_session.add(new_sales_detail)
+        db_session.commit()
 
-                db_session.add(new_sales_detail)
-                db_session.commit()
-
-                return jsonify({
-                    "id": new_sales_detail.id,
-                    "Message": "Sales_detail has been updated successfully"
-                }), 201
-
-        else:
-            error = {"error": "Invalid request"}
-            return jsonify(error), 405
+        return jsonify({
+            "id": new_sales_detail.id,
+            "Message": "Sales detail has been added successfully"
+        }), 201
 
     except Exception as error:
         db_session.rollback()
-        return jsonify({"Error": str(error)}), 500
 
+        return jsonify({
+            "Error": str(error)
+        }), 500
+
+
+@app.route("/stk_push", methods=["POST"])
+def stk_push():
+    try:
+        payload = request.get_json()
+        response = make_stk_push(payload)
+
+        new_payment = Payment(
+            sale_id=payload["sale_id"],
+            amount_paid=payload["amount_paid"],
+            phone_number=payload["phone_number"],
+            mrid=response.get("MerchantRequestID"),
+            crid=response.get("CheckoutRequestID"),
+            payment_status="pending"
+        )
+
+        db_session.add(new_payment)
+        db_session.commit()
+
+        return {"message": "STK push initiated"}
+
+    except Exception as e:
+        db_session.rollback()
+        print("STK push error:", e)
+        return {"error": str(e)}, 500
+
+@app.route('/saf-callback', methods=allowed_methods)
+def saf_callback():
+    try:
+        payload = request.get_json()
+        print("CALLBACK:", payload)
+        stkCallback = payload.get('Body', {}).get('stkCallback', {})
+        result_code = stkCallback.get('ResultCode')
+        mrid = stkCallback.get('MerchantRequestID')
+        crid = stkCallback.get('CheckoutRequestID')
+        payment = db_session.scalars(select(Payment).where(Payment.mrid == mrid, Payment.crid == crid)).first()
+        if not payment:
+            print("PAYMENT NOT FOUND:", mrid, crid)
+            return {"message": "Payment not found"}, 200
+        if result_code == 0:
+            items = stkCallback.get('CallbackMetadata', {}).get('Item', [])
+            for item in items:
+                if item.get('Name') == 'MpesaReceiptNumber':
+                    payment.transaction_code = item.get('Value')
+                elif item.get('Name') == 'Amount':
+                    payment.amount_paid = item.get('Value')
+            payment.payment_status = "completed"
+        else:
+            payment.payment_status = "failed"
+            print("PAYMENT FAILED:", stkCallback.get('ResultDesc'))
+        db_session.commit()
+    except Exception:
+        db_session.rollback()
+        import traceback
+        traceback.print_exc()
+    return {"message": "Callback received"}, 200
+
+@app.route('/payments', methods=allowed_methods)
+def get_payments():
+    payments = db_session.scalars(select(Payment)).all()
+    return [{
+        "id": p.id,
+        "sale_id": p.sale_id,
+        "amount_paid": p.amount_paid,
+        "transaction_code": p.transaction_code,
+        "payment_status": p.payment_status,
+        "phone_number": p.phone_number,
+        "mrid": p.mrid,
+        "crid": p.crid
+    } for p in payments], 200
 
 app.run(debug=True)
