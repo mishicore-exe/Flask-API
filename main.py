@@ -568,14 +568,12 @@ def stk_push():
 def saf_callback():
     try:
         payload = request.get_json()
-        print("CALLBACK:", payload)
         stkCallback = payload.get('Body', {}).get('stkCallback', {})
         result_code = stkCallback.get('ResultCode')
         mrid = stkCallback.get('MerchantRequestID')
         crid = stkCallback.get('CheckoutRequestID')
         payment = db_session.scalars(select(Payment).where(Payment.mrid == mrid, Payment.crid == crid)).first()
         if not payment:
-            print("PAYMENT NOT FOUND:", mrid, crid)
             return {"message": "Payment not found"}, 200
         if result_code == 0:
             items = stkCallback.get('CallbackMetadata', {}).get('Item', [])
@@ -587,7 +585,6 @@ def saf_callback():
             payment.payment_status = "completed"
         else:
             payment.payment_status = "failed"
-            print("PAYMENT FAILED:", stkCallback.get('ResultDesc'))
         db_session.commit()
     except Exception:
         db_session.rollback()
