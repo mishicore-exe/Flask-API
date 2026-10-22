@@ -583,6 +583,9 @@ def saf_callback():
                 elif item.get('Name') == 'Amount':
                     payment.amount_paid = item.get('Value')
             payment.payment_status = "completed"
+            db_session.commit()
+            text = f"transaction_code {payment.transaction_code},amount_paid{payment.amount_paid},date{payment.created_at}"
+            create_pdf(text, payment.transaction_code)
         else:
             payment.payment_status = "failed"
         db_session.commit()
@@ -590,6 +593,7 @@ def saf_callback():
         db_session.rollback()
         import traceback
         traceback.print_exc()
+    print("---------------------------------------------callback finished---------------------------------",flush=True)
     return {"message": "Callback received"}, 200
 
 @app.route('/payments', methods=allowed_methods)

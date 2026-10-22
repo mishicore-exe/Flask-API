@@ -39,7 +39,6 @@ def make_stk_push(payload):
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json"
     }
-
     password, timestamp = generate_password_and_timestamp()
 
     push_data = {
@@ -55,7 +54,6 @@ def make_stk_push(payload):
         "AccountReference": str(payload.get('sale_id')),
         "TransactionDesc": "description of the transaction",
     }
-
     response = requests.post(
         saf_stkpush_api,
         json=push_data,
